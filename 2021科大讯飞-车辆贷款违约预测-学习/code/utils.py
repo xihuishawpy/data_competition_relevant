@@ -35,10 +35,17 @@ def gen_thres_new(df_train, oof_preds):
     quantile_point = df_train['loan_default'].mean()
     thres = df_train['oof_preds'].quantile(1 - quantile_point)
 
-    _thresh = []
-    for thres_item in np.arange(thres - 0.2, thres + 0.2, 0.01):
-        _thresh.append(
-            [thres_item, f1_score(df_train['loan_default'], np.where(oof_preds > thres_item, 1, 0), average='macro')])
+    _thresh = [
+        [
+            thres_item,
+            f1_score(
+                df_train['loan_default'],
+                np.where(oof_preds > thres_item, 1, 0),
+                average='macro',
+            ),
+        ]
+        for thres_item in np.arange(thres - 0.2, thres + 0.2, 0.01)
+    ]
 
     _thresh = np.array(_thresh)
     best_id = _thresh[:, 1].argmax()

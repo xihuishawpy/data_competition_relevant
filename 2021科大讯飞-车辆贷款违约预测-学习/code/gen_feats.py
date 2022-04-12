@@ -85,7 +85,7 @@ def gen_new_feats(train, test):
 
     # 对部分特征进行分箱操作
     # 等宽分箱
-    loan_to_asset_ratio_labels = [i for i in range(10)]
+    loan_to_asset_ratio_labels = list(range(10))
     data['loan_to_asset_ratio_bin'] = pd.cut(data["loan_to_asset_ratio"], 10, labels=loan_to_asset_ratio_labels)
     # 等频分箱
     data['asset_cost_bin'] = pd.qcut(data['asset_cost'], 10, labels=loan_to_asset_ratio_labels)
@@ -100,10 +100,13 @@ def gen_new_feats(train, test):
                    'sub_account_monthly_payment',
                    'total_sanction_loan'
                 ]
-    amount_labels = [i for i in range(10)]
+    amount_labels = list(range(10))
     for col in amount_cols:
         total_monthly_payment_bin = [-1, 5000, 10000, 30000, 50000, 100000, 300000, 500000, 1000000, 3000000, data[col].max()]
-        data[col + '_bin'] = pd.cut(data[col], total_monthly_payment_bin, labels=amount_labels).astype(int)
+        data[f'{col}_bin'] = pd.cut(
+            data[col], total_monthly_payment_bin, labels=amount_labels
+        ).astype(int)
+
 
     # Step 3: 返回包含新特征的训练集 & 测试集
     return data[data['loan_default'].notnull()], data[data['loan_default'].isnull()]
@@ -114,7 +117,7 @@ def gen_target_encoding_feats(train, test, encode_cols, target_col, n_fold=10):
     # for training set - cv
     tg_feats = np.zeros((train.shape[0], len(encode_cols)))
     kfold = StratifiedKFold(n_splits=n_fold, random_state=1024, shuffle=True)
-    for _, (train_index, val_index) in enumerate(kfold.split(train[encode_cols], train[target_col])):
+    for train_index, val_index in kfold.split(train[encode_cols], train[target_col]):
         df_train, df_val = train.iloc[train_index], train.iloc[val_index]
         for idx, col in enumerate(encode_cols):
             target_mean_dict = df_train.groupby(col)[target_col].mean()
@@ -141,7 +144,7 @@ def gen_neighbor_feats(train, test):
             if i >= 10 and i < 199706:
                 customer_id_neighbors = list(range(i - 10, i)) + list(range(i + 1, i + 10))
             elif i < 199706:
-                customer_id_neighbors = list(range(0, i)) + list(range(i + 1, i + 10))
+                customer_id_neighbors = list(range(i)) + list(range(i + 1, i + 10))
             else:
                 customer_id_neighbors = list(range(i - 10, i)) + list(range(i + 1, 199706))
 
@@ -150,8 +153,13 @@ def gen_neighbor_feats(train, test):
             neighbor_default_prob = train.set_index('customer_id').loc[customer_id_neighbors].loan_default.mean()
             neighbor_default_probs.append(neighbor_default_prob)
 
-        df_neighbor_default_prob = pd.DataFrame({'customer_id': range(0, train.customer_id.max()),
-                                                 'neighbor_default_prob': neighbor_default_probs})
+        df_neighbor_default_prob = pd.DataFrame(
+            {
+                'customer_id': range(train.customer_id.max()),
+                'neighbor_default_prob': neighbor_default_probs,
+            }
+        )
+
         save_pkl(df_neighbor_default_prob, '../user_data/neighbor_default_probs.pkl')
     else:
         df_neighbor_default_prob = load_pkl('../user_data/neighbor_default_probs.pkl')
@@ -175,8 +183,8 @@ if __name__ == '__main__':
 
     # 特征工程 一些后处理
     for col in ['sub_Rate', 'main_Rate', 'outstanding_disburse_ratio']:
-        train[col] = train[col].apply(lambda x: 1 if x > 1 else x)
-        test[col] = test[col].apply(lambda x: 1 if x > 1 else x)
+        train[col] = train[col].apply(lambda x: min(x, 1))
+        test[col] = test[col].apply(lambda x: min(x, 1))
     train['asset_cost_bin'] = train['asset_cost_bin'].astype(int)
     test['asset_cost_bin'] = test['asset_cost_bin'].astype(int)
     train['loan_to_asset_ratio_bin'] = train['loan_to_asset_ratio_bin'].astype(int)

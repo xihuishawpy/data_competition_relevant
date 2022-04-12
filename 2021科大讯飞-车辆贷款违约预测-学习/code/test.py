@@ -12,8 +12,8 @@ from gen_feats import *
 
 def predict_xgb_kfold(model_path, train, test, feat_cols, label_col):
     for col in ['sub_Rate', 'main_Rate', 'outstanding_disburse_ratio']:
-        train[col] = train[col].apply(lambda x: 1 if x > 1 else x)
-        test[col] = test[col].apply(lambda x: 1 if x > 1 else x)
+        train[col] = train[col].apply(lambda x: min(x, 1))
+        test[col] = test[col].apply(lambda x: min(x, 1))
 
     X_train = train[feat_cols]
     y_train = train[label_col]
